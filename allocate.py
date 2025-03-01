@@ -1,8 +1,10 @@
+# best (in decreasing order): 26/27, 22, 12/21, 11, 9, 3
+
 import numpy as np
 from scipy.optimize import minimize
 
 class PortfolioStrategy:
-    def __init__(self, risk_free_rate=0.02, rebalance_threshold=0.05, lookback_window=30, volatility_window=20):
+    def __init__(self, risk_free_rate=0.02, rebalance_threshold=0.3, lookback_window=12, volatility_window=12):
         """
         Initialize strategy parameters.
         """
