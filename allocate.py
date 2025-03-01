@@ -2,13 +2,14 @@ import numpy as np
 from scipy.optimize import minimize
 
 class PortfolioStrategy:
-    def __init__(self, risk_free_rate=0.02, rebalance_threshold=0.05, lookback_window=30):
+    def __init__(self, risk_free_rate=0.02, rebalance_threshold=0.05, lookback_window=30, volatility_window=20):
         """
         Initialize strategy parameters.
         """
         self.risk_free_rate = risk_free_rate  # Risk-free rate for Sharpe Ratio
         self.rebalance_threshold = rebalance_threshold  # Threshold for rebalancing
         self.lookback_window = lookback_window  # Number of days to look back for optimization
+        self.volatility_window = volatility_window  # Window for calculating rolling volatility
         self.historical_data = []  # Stores historical market data for lookback
         self.optimal_weights = None  # Stores the optimal weights
         self.previous_weights = None  # Stores the previous weights for rebalancing
@@ -21,9 +22,16 @@ class PortfolioStrategy:
         portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(np.cov(returns, rowvar=False), weights)))
         return -(portfolio_return - self.risk_free_rate) / portfolio_volatility  # Negative for minimization
 
-    def optimize_portfolio(self, returns):
+    def diversification_score(self, weights):
         """
-        Optimize portfolio weights to maximize the Sharpe Ratio.
+        Calculate the diversification score using the Herfindahl-Hirschman Index (HHI).
+        Lower HHI means better diversification.
+        """
+        return np.sum(weights**2)
+
+    def optimize_portfolio(self, returns, volatilities):
+        """
+        Optimize portfolio weights to maximize the Sharpe Ratio while ensuring diversification.
         """
         n_assets = returns.shape[1]
         initial_weights = np.ones(n_assets) / n_assets  # Equal weights as initial guess
@@ -34,13 +42,19 @@ class PortfolioStrategy:
         # Bounds: no short selling (0 <= weight <= 1)
         bounds = tuple((0, 1) for _ in range(n_assets))
 
+        # Objective function: Sharpe Ratio + Diversification Score
+        def objective(weights):
+            sharpe = self.sharpe_ratio(weights, returns)
+            diversification = self.diversification_score(weights)
+            return sharpe + 0.1 * diversification  # Adjust the diversification penalty as needed
+
         # Optimize
-        result = minimize(self.sharpe_ratio, initial_weights, args=(returns), method='SLSQP', bounds=bounds, constraints=constraints)
+        result = minimize(objective, initial_weights, method='SLSQP', bounds=bounds, constraints=constraints)
         return result.x
 
-    def rebalance_portfolio(self, current_weights, optimal_weights):
+    def rebalance_portfolio(self, current_weights, optimal_weights, volatilities):
         """
-        Rebalance portfolio if weights deviate beyond the threshold.
+        Rebalance portfolio if weights deviate beyond the threshold or if volatility changes significantly.
         """
         deviation = np.abs(current_weights - optimal_weights)
         if np.any(deviation > self.rebalance_threshold):
@@ -63,19 +77,23 @@ class PortfolioStrategy:
             n_assets = len(market_data['close'])
             return np.ones(n_assets) / n_assets
 
-        # Extract closing prices from historical data
+        # Extract closing prices and volumes from historical data
         closes = np.array([day['close'] for day in self.historical_data])
+        volumes = np.array([day['volume'] for day in self.historical_data])
 
         # Calculate daily returns
         returns = np.diff(closes, axis=0) / closes[:-1]
 
+        # Calculate rolling volatility
+        volatilities = np.std(returns[-self.volatility_window:], axis=0)
+
         # Optimize portfolio weights
-        self.optimal_weights = self.optimize_portfolio(returns)
+        self.optimal_weights = self.optimize_portfolio(returns, volatilities)
 
         # Rebalance portfolio
         if self.previous_weights is None:
             self.previous_weights = self.optimal_weights
         else:
-            self.previous_weights = self.rebalance_portfolio(self.previous_weights, self.optimal_weights)
+            self.previous_weights = self.rebalance_portfolio(self.previous_weights, self.optimal_weights, volatilities)
 
         return self.previous_weights

@@ -1,0 +1,21 @@
+Strategy evaluated successfully. 
+Metrics: {
+  "sharpe_ratio": -0.07638672367839619,
+  "sortino_ratio": -0.10079214447980006,
+  "annual_return": -0.12676920363125788,
+  "max_drawdown": -0.25967680746749267,
+  "volatility": 0.021860093526099928,
+  "win_rate": 0.5070422535211268,
+  "calmar_ratio": -0.4881806922519537
+}
+
+Strategy evaluated successfully. 
+Metrics: {
+  "sharpe_ratio": -0.016462809105252774,
+  "sortino_ratio": -0.024987294285912006,
+  "annual_return": -0.041094545663766024,
+  "max_drawdown": -0.21199331947346822,
+  "volatility": 0.021685861929741805,
+  "win_rate": 0.5352112676056338,
+  "calmar_ratio": -0.19384830505901468
+}
